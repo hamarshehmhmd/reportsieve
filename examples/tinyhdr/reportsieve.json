@@ -1,0 +1,17 @@
+{
+  "project": "tinyhdr",
+  "known": ["known/"],
+  "out_of_scope": {
+    "paths": ["examples/*", "tests/*", "fuzz/*"],
+    "cwes": [],
+    "keywords": ["self-xss"]
+  },
+  "duplicate_threshold": 0.6,
+  "repro": {
+    "sandbox": "auto",
+    "timeout": 60,
+    "templates": {
+      "c": "cc -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -Iinclude src/tinyhdr.c {poc} -o /tmp/poc && /tmp/poc"
+    }
+  }
+}

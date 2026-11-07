@@ -1,0 +1,8 @@
+__pycache__/
+*.egg-info/
+.reportsieve/
+.pytest_cache/
+build/
+dist/
+demo/build/
+*.mp4

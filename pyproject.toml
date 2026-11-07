@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reportsieve"
+version = "0.1.0"
+description = "Reproduce, dedupe and score inbound security reports before a human reads them: sandboxed PoC runs, crash-signature dedupe, known-advisory matching and evidence scores."
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{name = "Mohammad Hamarsheh"}]
+requires-python = ">=3.9"
+dependencies = []
+keywords = [
+  "security", "vulnerability-disclosure", "bug-bounty", "triage", "psirt", "vdp",
+  "deduplication", "addresssanitizer", "open-source-maintainers", "ai-slop",
+]
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Topic :: Security",
+  "Topic :: Software Development :: Bug Tracking",
+]
+
+[project.urls]
+Homepage = "https://github.com/hamarshehmhmd/reportsieve"
+Issues = "https://github.com/hamarshehmhmd/reportsieve/issues"
+
+[project.scripts]
+reportsieve = "reportsieve.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

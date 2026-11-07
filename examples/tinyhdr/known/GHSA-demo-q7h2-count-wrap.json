@@ -1,0 +1,9 @@
+{
+  "ghsa_id": "GHSA-demo-q7h2-x3kw",
+  "cve_id": "CVE-2026-90001",
+  "summary": "hdr_list count wraps after 65535 headers (integer overflow)",
+  "description": "In tinyhdr before 1.4.1, hdr_list_add() increments the unsigned short `count` field without a bound. With 65536 or more headers the count wraps to zero and callers that size buffers from `count` can under-allocate. Fixed in 1.4.1 by capping headers at HDR_MAX_HEADERS.",
+  "cwe_ids": ["CWE-190"],
+  "published_at": "2026-09-14T10:00:00Z",
+  "vulnerabilities": [{"package": {"ecosystem": "other", "name": "tinyhdr"}, "vulnerable_version_range": "< 1.4.1", "patched_versions": "1.4.1"}]
+}

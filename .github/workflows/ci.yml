@@ -1,0 +1,90 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: ubuntu-22.04
+            python: "3.9"
+          - os: macos-latest
+            python: "3.13"
+          - os: windows-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: bubblewrap sandbox (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --ro-bind / / --unshare-all true && echo "bwrap ok"
+      - run: python -m pip install . pytest
+      - run: python -m pytest -q -rs
+        env:
+          REPORTSIEVE_LIVE: "1"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-runner:
+    name: docker sandbox runner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: docker pull -q python:3.12-alpine
+      - run: python -m pip install . pytest
+      - run: python -m pytest -q -rs tests/test_repro.py -k docker
+        env:
+          REPORTSIEVE_DOCKER: "1"
+
+  example:
+    name: example inbox end to end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - run: python -m pip install .
+      - name: triage the demo inbox with sandboxed repro
+        working-directory: examples/tinyhdr
+        run: |
+          reportsieve triage reports/ --repo . --repro --color always
+          reportsieve triage reports/ --repo . -f json > /tmp/t.json
+          python - <<'PY'
+          import json
+          d = json.load(open("/tmp/t.json"))
+          v = {r["id"]: r["verdict"] for r in d["reports"]}
+          print(v)
+          assert v["r01-heap-overflow-parse-header"] == "confirmed"
+          assert v["r08-uaf-hdr-remove"] == "confirmed"
+          assert v["r02-ai-writeup-same-overflow"] == "duplicate"
+          assert v["r04-count-wrap-known"] == "known"
+          assert v["r05-rce-callback"] == "likely-noise"
+          PY
+          reportsieve triage reports/ --repo . -f markdown -o "$RUNNER_TEMP/triage.md"
+          cat "$RUNNER_TEMP/triage.md" >> "$GITHUB_STEP_SUMMARY"
+
+  install-script:
+    name: one-line install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: REPORTSIEVE_REF=${{ github.sha }} sh install.sh
+      - run: |
+          export PATH="$HOME/.local/bin:${PIPX_BIN_DIR:-/opt/pipx_bin}:$PATH"
+          reportsieve --version
