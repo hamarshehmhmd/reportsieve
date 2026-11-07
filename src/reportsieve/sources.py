@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import email
+import email.header
 import email.policy
 import json
 import os
@@ -83,15 +84,37 @@ def load_file(path: str) -> List[Report]:
         return [_from_record(d, f"{rid}-{i + 1}", path) for i, d in enumerate(items)]
     with open(path, "rb") as fh:
         raw = fh.read()
-    if path.endswith(".eml") or raw[:200].lower().startswith((b"from:", b"return-path:", b"received:", b"subject:", b"message-id:", b"delivered-to:")) and b"\n\n" in raw:
-        msg = email.message_from_bytes(raw, policy=email.policy.default)
-        part = msg.get_body(preferencelist=("plain", "html"))
-        body = part.get_content() if part else ""
-        if part is not None and part.get_content_type() == "text/html":
-            body = re.sub(r"<[^>]+>", " ", body)
-        text = f"Subject: {msg.get('subject', '')}\nFrom: {msg.get('from', '')}\nDate: {msg.get('date', '')}\n\n{body}"
-        return [parse_report(text, rid, path)]
+    head = raw[:300].lower()
+    if path.lower().endswith(".eml") or head.startswith((b"received:", b"return-path:", b"message-id:", b"delivered-to:", b"mime-version:")):
+        try:
+            return [parse_report(_email_text(raw), rid, path)]
+        except Exception:
+            pass  # malformed mail: fall back to the raw text
     return [parse_report(raw.decode("utf-8", errors="replace"), rid, path)]
+
+
+def _email_text(raw: bytes) -> str:
+    msg = email.message_from_bytes(raw, policy=email.policy.compat32)
+    body = ""
+    parts = msg.walk() if msg.is_multipart() else [msg]
+    for want in ("text/plain", "text/html"):
+        for part in parts if not msg.is_multipart() else msg.walk():
+            if part.get_content_type() == want and not part.is_multipart():
+                payload = part.get_payload(decode=True) or b""
+                body = payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+                if want == "text/html":
+                    body = re.sub(r"<[^>]+>", " ", body)
+                break
+        if body:
+            break
+
+    def h(name: str) -> str:
+        v = msg.get(name, "")
+        try:
+            return str(email.header.make_header(email.header.decode_header(v))) if v else ""
+        except Exception:
+            return str(v)
+    return f"Subject: {h('subject')}\nFrom: {h('from')}\nDate: {h('date')}\n\n{body}"
 
 
 def load_paths(paths: List[str]) -> List[Report]:

@@ -105,3 +105,8 @@ def test_heading_title_and_no_versions_from_cvss_or_ips():
 def test_crash_log_in_console_block_is_output_not_poc():
     r = parse_report("```console\n" + ASAN + "```\n", "x")
     assert r.poc_blocks == [] and r.signature.frames == ["parse_header"]
+
+
+def test_crlf_line_endings():
+    r = parse_report(REPORT.replace("\n", "\r\n"), "r1")
+    assert [b.lang for b in r.blocks] == ["c", "sh"] and r.title.startswith("Heap overflow")

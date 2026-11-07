@@ -252,6 +252,7 @@ STOP_FUNCS = {"main", "printf", "if", "for", "while", "return", "sizeof", "mallo
 
 
 def parse_report(text: str, rid: str, source: str = "") -> Report:
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     meta: Dict[str, str] = {}
     for k, v in HEADER_LINE.findall(text[:2000]):
         meta.setdefault(k.lower(), v.strip())

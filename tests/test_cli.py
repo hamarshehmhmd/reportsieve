@@ -119,3 +119,15 @@ def test_live_github_published_advisories(tmp_path, capsys):
     assert main(["triage", str(tmp_path / "r.md"), "--known", "gh:psf/requests", "-f", "json", "--state", str(tmp_path / "s")]) == 0
     d = json.loads(capsys.readouterr().out)
     assert d["reports"][0]["known_as"]["id"].startswith("GHSA-")
+
+
+def test_multipart_eml_and_markdown_with_mail_like_headers(tmp_path, capsys):
+    (tmp_path / "mp.eml").write_bytes(
+        b"Message-ID: <1@x>\nFrom: =?utf-8?q?Tom=C3=A1s?= <t@x.org>\nSubject: UAF in hdr_remove()\nDate: not a real date\n"
+        b"MIME-Version: 1.0\nContent-Type: multipart/alternative; boundary=XX\n\n--XX\nContent-Type: text/plain; charset=utf-8\n\n"
+        b"hdr_remove() use-after-free\n--XX\nContent-Type: text/html\n\n<p>html</p>\n--XX--\n")
+    (tmp_path / "note.md").write_text("Subject: odd date\nDate: 2026-10-28\n\nparse_header() overflow\n")
+    assert main(["triage", str(tmp_path), "-f", "json", "--state", str(tmp_path / "s")]) == 0
+    d = {r["id"]: r for r in json.loads(capsys.readouterr().out)["reports"]}
+    assert d["mp"]["title"] == "UAF in hdr_remove()" and d["mp"]["reporter"].startswith("Tomás") and "CWE-416" in d["mp"]["cwes"]
+    assert d["note"]["date"] == "2026-10-28"
